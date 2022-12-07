@@ -21,11 +21,13 @@ parseInput str = result
 
 
 -- Part 1 Solution
+mostCalories :: FilePath -> IO Int
 mostCalories path = do
   contents <- TIO.readFile path
   return $ (highestCalorieCount . parseInput) contents
 
 -- Part 2 Solution
+topThreeCalorieCountsCombined :: FilePath -> IO Int
 topThreeCalorieCountsCombined path = do
   contents <- TIO.readFile path
   return $ (sum . topThreeCalorieCounts . parseInput) contents
