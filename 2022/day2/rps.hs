@@ -5,11 +5,15 @@ data Move = Rock | Paper | Scissors deriving (Eq, Show)
 
 data RoundOutcome = Win | Draw | Loss deriving (Eq, Show)
 
+type DesiredOutcome = RoundOutcome
+
 type OpponentMove = Move
 
 type PlayerMove = Move
 
 newtype Round = Round (OpponentMove, PlayerMove) deriving (Show, Eq)
+
+newtype PlannedRound = PlannedRound (OpponentMove, DesiredOutcome)
 
 class Scorable a where
   points :: a -> Int
@@ -48,21 +52,68 @@ movefromString "Z" = Scissors
 movefromString [] = error "No Input Provided!"
 movefromString p = error "Invalid Input!"
 
+-- X -> Lose
+-- Y -> Draw
+-- Z -> Win
+outcomeFromString :: String -> RoundOutcome
+outcomeFromString "X" = Loss
+outcomeFromString "Y" = Draw
+outcomeFromString "Z" = Win
+outcomeFromString [] = error "No Input Provided!"
+outcomeFromString p = error "Invalid Input!"
+
 sampleMoves = unlines ["A Y", "B X", "C Z"]
 
 fstPair :: [b] -> (b, b)
 fstPair [a, b] = (a, b)
 fstPair b = (head b, (head . tail) b)
 
-parseInput :: String -> [Round]
+parseInput :: String -> [(String, String)]
 parseInput str = result
   where
     rounds = lines str
     stringifiedMoves = map words rounds
-    result = map (Round . fstPair . map movefromString) stringifiedMoves
+    result = map fstPair stringifiedMoves
 
-main :: IO ()
-main = do
+pairToRound :: (String, String) -> Round
+pairToRound (a, b) = Round (opponent, player)
+  where
+    opponent = movefromString a
+    player = movefromString b
+
+pairsToRounds :: [(String, String)] -> [Round]
+pairsToRounds = fmap pairToRound
+
+pairToPlannedRound :: (String, String) -> PlannedRound
+pairToPlannedRound (move, outcome) = PlannedRound (opponentMove, desiredOutcome)
+  where
+    opponentMove = movefromString move
+    desiredOutcome = outcomeFromString outcome
+
+pairsToPlannedRounds :: [(String, String)] -> [PlannedRound]
+pairsToPlannedRounds = fmap pairToPlannedRound
+
+plannedRoundToRound :: PlannedRound -> Round
+plannedRoundToRound (PlannedRound (Rock, Win)) = Round (Rock, Paper)
+plannedRoundToRound (PlannedRound (Rock, Loss)) = Round (Rock, Scissors)
+plannedRoundToRound (PlannedRound (Paper, Win)) = Round (Paper, Scissors)
+plannedRoundToRound (PlannedRound (Paper, Loss)) = Round (Paper, Rock)
+plannedRoundToRound (PlannedRound (Scissors, Win)) = Round (Scissors, Rock)
+plannedRoundToRound (PlannedRound (Scissors, Loss)) = Round (Scissors, Paper)
+plannedRoundToRound (PlannedRound (a, Draw)) = Round (a, a)
+
+plannedRoundstoRounds :: [PlannedRound] -> [Round]
+plannedRoundstoRounds = fmap plannedRoundToRound
+
+main1 :: IO ()
+main1 = do
   input <- IO.readFile "rounds.txt"
-  let scores =  map points (parseInput input)
+  let scores = map points $ (pairsToRounds . parseInput) input
+  print (sum scores)
+
+
+main2 :: IO ()
+main2 = do
+  input <- IO.readFile "rounds.txt"
+  let scores = map points $ (plannedRoundstoRounds. pairsToPlannedRounds . parseInput) input
   print (sum scores)
