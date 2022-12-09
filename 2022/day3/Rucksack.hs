@@ -34,18 +34,22 @@ parseInput input = map mkRucksack compartmentPairs
 main1 :: FilePath -> IO ()
 main1 path = do
   input <- readFile' path
-  let result = (sumPriorities . duplicateCompartments . parseInput) input
+  let compartments = duplicateCompartments $ parseInput input
+  let result = sumPriorities compartments
   print result
 
 main2 :: FilePath -> IO ()
 main2 path = do
   input <- readFile' path
-  let result = (sumPriorities . groupBadges . groupRucksacks . parseInput) input
+  let groups = groupRucksacks $ parseInput input
+  let result = sumPriorities $ groupBadges groups
   print result
 
-puzzleSolution1 = main1 "rucksacks.txt"
+-- | Part 1 Solution
+solutionPart1 = main1 "rucksacks.txt"
 
-puzzleSolution2 = main2 "rucksacks.txt"
+-- | Part 2 Solution
+solutionPart2 = main2 "rucksacks.txt"
 
 duplicateCompartment :: Rucksack -> Char
 duplicateCompartment (Rucksack (Compartment a, Compartment b)) = head (nub (a `intersect` b))
