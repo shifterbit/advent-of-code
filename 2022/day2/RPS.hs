@@ -1,3 +1,4 @@
+import Data.Function (on)
 import Data.List (sort)
 import qualified System.IO as IO
 
@@ -13,7 +14,7 @@ type PlayerMove = Move
 
 newtype Round = Round (OpponentMove, PlayerMove) deriving (Show, Eq)
 
-newtype PlannedRound = PlannedRound (OpponentMove, DesiredOutcome)
+newtype RoundPlan = RoundPlan (OpponentMove, DesiredOutcome) deriving (Show, Eq)
 
 class Scorable a where
   points :: a -> Int
@@ -31,6 +32,8 @@ instance Scorable RoundOutcome where
 instance Scorable Round where
   points round@(Round (opponentMove, playerMove)) = points playerMove + points (roundOutcome round)
 
+-- | Return the outcome of the round based on
+--  the moves made by the player and opponent
 roundOutcome :: Round -> RoundOutcome
 roundOutcome (Round (Scissors, Scissors)) = Draw
 roundOutcome (Round (Scissors, Rock)) = Win
@@ -42,6 +45,7 @@ roundOutcome (Round (Rock, Rock)) = Draw
 roundOutcome (Round (Rock, Paper)) = Win
 roundOutcome (Round (Rock, Scissors)) = Loss
 
+-- | Converts a string to an RPS Move
 movefromString :: String -> Move
 movefromString "A" = Rock
 movefromString "B" = Paper
@@ -52,9 +56,10 @@ movefromString "Z" = Scissors
 movefromString [] = error "No Input Provided!"
 movefromString p = error "Invalid Input!"
 
--- X -> Lose
--- Y -> Draw
--- Z -> Win
+-- | Get the desired outcome based on the string passed
+--  X -> Lose
+--  Y -> Draw
+--  Z -> Win
 outcomeFromString :: String -> RoundOutcome
 outcomeFromString "X" = Loss
 outcomeFromString "Y" = Draw
@@ -66,7 +71,7 @@ sampleMoves = unlines ["A Y", "B X", "C Z"]
 
 fstPair :: [b] -> (b, b)
 fstPair [a, b] = (a, b)
-fstPair b = (head b, (head . tail) b)
+fstPair b = (head b, head $ tail b)
 
 parseInput :: String -> [(String, String)]
 parseInput str = result
@@ -75,35 +80,39 @@ parseInput str = result
     stringifiedMoves = map words rounds
     result = map fstPair stringifiedMoves
 
+-- | Converts a String Tuples to a Round
 pairToRound :: (String, String) -> Round
 pairToRound (a, b) = Round (opponent, player)
   where
     opponent = movefromString a
     player = movefromString b
 
+-- | Converts a List of String Tuples to a list of Rounds
 pairsToRounds :: [(String, String)] -> [Round]
 pairsToRounds = fmap pairToRound
 
-pairToPlannedRound :: (String, String) -> PlannedRound
-pairToPlannedRound (move, outcome) = PlannedRound (opponentMove, desiredOutcome)
+pairToRoundPlan :: (String, String) -> RoundPlan
+pairToRoundPlan (move, outcome) = RoundPlan (opponentMove, desiredOutcome)
   where
     opponentMove = movefromString move
     desiredOutcome = outcomeFromString outcome
 
-pairsToPlannedRounds :: [(String, String)] -> [PlannedRound]
-pairsToPlannedRounds = fmap pairToPlannedRound
+pairsToRoundPlans :: [(String, String)] -> [RoundPlan]
+pairsToRoundPlans = fmap pairToRoundPlan
 
-plannedRoundToRound :: PlannedRound -> Round
-plannedRoundToRound (PlannedRound (Rock, Win)) = Round (Rock, Paper)
-plannedRoundToRound (PlannedRound (Rock, Loss)) = Round (Rock, Scissors)
-plannedRoundToRound (PlannedRound (Paper, Win)) = Round (Paper, Scissors)
-plannedRoundToRound (PlannedRound (Paper, Loss)) = Round (Paper, Rock)
-plannedRoundToRound (PlannedRound (Scissors, Win)) = Round (Scissors, Rock)
-plannedRoundToRound (PlannedRound (Scissors, Loss)) = Round (Scissors, Paper)
-plannedRoundToRound (PlannedRound (a, Draw)) = Round (a, a)
+-- | Takes a PlannedRound and returns a round that matches the desired result
+roundFromRoundPlan :: RoundPlan -> Round
+roundFromRoundPlan (RoundPlan (Rock, Win)) = Round (Rock, Paper)
+roundFromRoundPlan (RoundPlan (Rock, Loss)) = Round (Rock, Scissors)
+roundFromRoundPlan (RoundPlan (Paper, Win)) = Round (Paper, Scissors)
+roundFromRoundPlan (RoundPlan (Paper, Loss)) = Round (Paper, Rock)
+roundFromRoundPlan (RoundPlan (Scissors, Win)) = Round (Scissors, Rock)
+roundFromRoundPlan (RoundPlan (Scissors, Loss)) = Round (Scissors, Paper)
+roundFromRoundPlan (RoundPlan (a, Draw)) = Round (a, a)
 
-plannedRoundstoRounds :: [PlannedRound] -> [Round]
-plannedRoundstoRounds = fmap plannedRoundToRound
+-- | Takes a List of PlannedRounds and returns a list of Rounds that matches the desired results
+roundsFromRoundPlans :: [RoundPlan] -> [Round]
+roundsFromRoundPlans = map roundFromRoundPlan
 
 main1 :: IO ()
 main1 = do
@@ -111,9 +120,8 @@ main1 = do
   let scores = map points $ (pairsToRounds . parseInput) input
   print (sum scores)
 
-
 main2 :: IO ()
 main2 = do
   input <- IO.readFile "rounds.txt"
-  let scores = map points $ (plannedRoundstoRounds. pairsToPlannedRounds . parseInput) input
+  let scores = map points $ (roundsFromRoundPlans . pairsToRoundPlans . parseInput) input
   print (sum scores)
